@@ -11,6 +11,11 @@ test_that("Object can be created", {
 context("Kernels")
 test_that("Kernel can be loaded", {  
   k <- system.file("extdata", "matrixtest.cu", package="cudalite")
-  e <- system.file("extdata", "error.cu", package="cudalite")
   expect_true({cu$loadKernel(k); TRUE})
+})
+
+context("Data")
+test_that("Data can be loaded", {  
+  m <- matrix(1, nrow=10000, ncol=10000)
+  expect_true({cu$loadMatrix(m); TRUE})
 })
