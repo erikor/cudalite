@@ -54,6 +54,7 @@ class Cuda {
     CUfunction _kernel;
 };
 
+
 void Cuda::loadKernel(string fn) {
   size_t ptxSize; 
   char *ptx;
@@ -81,11 +82,11 @@ void Cuda::loadKernel(string fn) {
   
   CUDA_SAFE_CALL( cuInit(0)); 
   CUDA_SAFE_CALL( cuDeviceGet(&cuDevice, 0));
-  CUDA_SAFE_CALL( cuCtxCreate(&context, 0, cuDevice);  CUDA_SAFE_CALL(cuModuleLoadDataEx(&module, ptx, 0, 0, 0))); 
-  CUDA_SAFE_CALL( cuModuleGetFunction(&kernel, module, "kernexec"));
+  CUDA_SAFE_CALL( cuCtxCreate(&context, 0, cuDevice);  
+  CUDA_SAFE_CALL( cuModuleLoadDataEx(&module, ptx, 0, 0, 0))); 
   CUDA_SAFE_CALL( cuModuleGetFunction(&kernel, module, "kernexec"));
   delete(ptx);
-  
+
   _kernel = kernel;
 }
 
@@ -99,11 +100,10 @@ void Cuda::loadMatrix(NumericMatrix x) {
 }
 
 
-RCPP_MODULE(unif) {
+RCPP_MODULE(cuda) {
   class_<Cuda>( "Cuda" )
-//  .constructor<double,double>()
   .constructor()
-  .method( "loadKernel", &Cuda::loadKernel )
-  .method( "loadMatrix", &Cuda::loadMatrix )
+  .method( "loadKernel", &Cuda::loadKernel, "Read kernel from source file, compile, and load it on device." )
+  .method( "loadMatrix", &Cuda::loadMatrix, "Load numeric matrix to device." )
 ;
 }
