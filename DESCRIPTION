@@ -1,0 +1,11 @@
+Package: cudalite
+Type: Package
+Title: A Thin Interface to Cuda
+Version: 1.0
+Date: 2017-06-08
+Author: Eric J. Kort
+Maintainer: Eric J. Kort <your@email.com>
+Description: Do we need another Cuda package for R? The RCUDA package (available from OmegaHat) is excellent for parallel processing on CUDA enabled GPUs.  However, we saw some opportunities for streamlining workflows, and we also encountered some compilation errors when trying to install  RCUDA.  That is the motivation behind this package. 
+License: GPL (>= 2)
+Imports: methods, Rcpp (>= 0.12.11)
+LinkingTo: Rcpp
