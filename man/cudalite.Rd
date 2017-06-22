@@ -16,26 +16,29 @@ The functionality of the cudalite package is encapsulated in the \code{Cuda} cla
   }
   \subsection{Methods}{
     \itemize{
-
       \item \bold{\code{loadKernel(fn)}} Read the kernel specified by \code{fn}, compile it, and load to device.  
-      \subsection{Arguments}
-      \itemize{
-        \item{\bold{\code{fn}}: The path to the kernel source file, typically a ".cu" file.}
-        }
-      \subsection{Return Value}
-      None.  Called for its side effect of compiling and loading the kernel.
-
-      \item \bold{\code{loadMatrix(x)}} Load a numeric matrix to device. 
-      \subsection{Arguments}
-      \itemize{
-        \item{\bold{\code{x}}: The numeric matrix to be loaded to the device.  At present, it is up the end user to ensure the 
-        matrix is not too large to fit into device memory.}
-        }
-      \subsection{Return Value}
-      None.  Called for its side effect of loading data onto the GPU.
+      \subsection{Arguments}{
+        \itemize{
+          \item{\bold{\code{fn}}: The path to the kernel source file, typically a ".cu" file.}
+         }
+      }
+      \subsection{Return Value}{
+        None.  Called for its side effect of compiling and loading the kernel.
+      }
+      
+      \item \bold{\code{launchKernel(List grid, List block, List args)}} Launch the kernel with specified arguments.
+      \subsection{Arguments}{
+        \itemize{
+          \item{\bold{\code{grid}}: List of three elements (names optional) providing x, y, and z dimensions of grid (in blocks).
+          \item{\bold{\code{block}}: List of three elements (names optional) providing x, y, and z dimensions of block (in threads).
+         }
+      }
+      \subsection{Return Value}{
+        None.  Called for its side effect of compiling and loading the kernel.
+      }
     }
   }
-  
+}
 \usage{
 library(cudalite)
 cu <- new(Cuda)
@@ -44,5 +47,5 @@ cu$loadKernel(k)
 m <- matrix(1, ncol=3, nrow=3)
 cu$h2dMatrix(m)
 }
-}
+
 

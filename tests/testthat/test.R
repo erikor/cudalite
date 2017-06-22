@@ -21,19 +21,17 @@ test_that("Kernel can be loaded", {
 })
 
 test_that("Kernel can be launched", {  
-  cu$launchKernel(list(1,1,1), list(2,2,1), list(a=5))
-  expect_true({TRUE})
-})
-
-test_that("Kernel can be launched", {  
-  x <- matrix(rnorm(100000), nrow=1000, ncol=100)
-  y <- matrix(0, nrow=1000, ncol=100)
+  x <- matrix(rnorm(2000), nrow=100, ncol=20)
+  y <- matrix(0, nrow=100, ncol=20)
   xp <- cu$h2dMatrix(x);
   yp <- cu$h2dMatrix(y);
   k <- system.file("extdata", "stride.cu", package="cudalite")
   cu$loadKernel(k)
-  cu$launchKernel(list(10,10,1), list(10,10,1), list(1000, 100, xp, yp))
+  cu$launchKernel(list(1,1,1), list(10,100,1), list(100, 20, xp, yp))
   res <- cu$d2hMatrix(yp)
+  all.equal(x, res)
+  print(str(res))
+  print(str(x))
   expect_true(all.equal(x, res))
 })
 

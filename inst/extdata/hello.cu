@@ -1,5 +1,7 @@
 extern "C" 
 
+#include <stdio.h>
+
 __global__
 void kernexec(double n)
 {

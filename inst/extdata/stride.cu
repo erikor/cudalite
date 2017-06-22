@@ -1,5 +1,7 @@
 extern "C" 
 
+#include <stdio.h>
+
 __global__
 void kernexec(double nrow, double ncol, double *x, double *out)
 {
@@ -14,7 +16,9 @@ void kernexec(double nrow, double ncol, double *x, double *out)
 
     int c = blockIdx.x * blockDim.x + threadIdx.x;
     int r = blockIdx.y * blockDim.y + threadIdx.y;
-    
+    if(threadIdx.x == 0) {
+      printf("\ndims: %d, %d\n", blockDim.x, blockDim.y);
+    }
     for (int i = r; i < nrow; i+= blockDim.x * gridDim.x) {
       for (int j = c; j < ncol; j+= blockDim.y * gridDim.y) {
         int index = i * ncol + j;
