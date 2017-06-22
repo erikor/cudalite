@@ -5,62 +5,130 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <nvrtc.h>
+#include <limits>
+#include "safecalls.h"
+#include <typeinfo>
 
 using namespace Rcpp;
 using namespace std;
 
-#define NVRTC_SAFE_CALL(x)                                  \
-do {                                                        \
-  nvrtcResult result = x;                                   \
-  if (result != NVRTC_SUCCESS) {                            \
-    cerr << "\nNVRTC call error: " #x " failed with error " \
-         << nvrtcGetErrorString(result) << '\n';            \
-    exit(1);                                                \
-  }                                                         \
-} while(0)
 
-#define CUDA_SAFE_CALL(x)                                  \
-do {                                                       \
-  const char *msg;                                         \
-  CUresult result = x;                                     \
-  if (result != CUDA_SUCCESS) {                            \
-    cuGetErrorName(result, &msg);                          \
-    cerr << "\nCUDA call error: " #x " failed with error " \
-         << msg << '\n';                                   \
-    exit(1);                                               \
-  }                                                        \
-} while(0)
+class cuData {
+ public:
+  cuData(NumericMatrix);
+  cuData(NumericVector);
 
-#define CU_SAFE_CALL(x)                                                           \
-do {                                                                              \
-  const char *msg;                                                                \
-  cudaError_t result = x;                                                         \
-  if (result != cudaSuccess) {                                                    \
-    cerr << "\nCUDA call error: " #x " failed with error "                        \
-         << cudaGetErrorString(result) << '\n';                                   \
-    exit(1);                                                                      \
-  }                                                                               \
-} while(0)
+  long length() {
+    return len;
+  }
+  
+  long nrow() {
+    return rows;
+  }
 
+  long ncol() {
+    return cols;
+  }
+ 
+  CUdeviceptr* getPtr() {
+    return(&dp);
+  }
+
+  ~cuData() {
+    if (dp) {
+      cout << "Freeing device memory." << endl;
+      CUDA_SAFE_CALL( cuMemFree(dp)); 
+    }
+  }
+
+ private:
+  long rows;
+  long cols;
+  long len;
+  CUdeviceptr dp;
+  
+};
+
+cuData::cuData(NumericVector x){
+  const size_t size = sizeof(double) * x.length();
+  len = x.length();
+  CUDA_SAFE_CALL( cuMemAlloc(&dp, size)); 
+  CUDA_SAFE_CALL( cuMemcpyHtoD(dp, REAL(x), size) );
+}
+
+cuData::cuData(NumericMatrix x){
+  const size_t size = sizeof(double) * size_t(x.nrow() * x.ncol());
+  rows = x.nrow();
+  cols = x.ncol();
+  CUDA_SAFE_CALL( cuMemAlloc(&dp, size)); 
+  CUDA_SAFE_CALL( cuMemcpyHtoD(dp, REAL(x), size) );
+}
 
 class Cuda {
   public:
     Cuda() {}
     double test();
-    void loadKernel(string fn);
-    void loadMatrix(NumericMatrix x);
-
+    void loadKernel(string);
+    void launchKernel(List, List, List);
+    XPtr< cuData > h2dMatrix(NumericMatrix);
+    XPtr< cuData > h2dVector(NumericVector);
+    NumericVector d2hVector(SEXP);
+    NumericMatrix d2hMatrix(SEXP);
+    
+    void test1(List);
+      
   private: 
-    CUfunction _kernel;
+    CUfunction kernel;
+    int _n;
 };
 
+
+void Cuda::launchKernel(List grid, List block, List args) {
+  dim3 dimG(*REAL(grid[0]), *REAL(grid[1]), *REAL(grid[2]));
+  dim3 dimB(*REAL(block[0]), *REAL(block[1]), *REAL(block[2]));
+  CUfunction testk;
+  int n = args.length();
+  void *a[args.length()];
+  for(int i; i < n; i++) {
+    SEXP p = args[i];
+    switch(TYPEOF(p)) {
+      case INTSXP: {
+        a[i] = INTEGER(p);
+        break;
+      }
+      case REALSXP: {
+        // TODO: allow for conversion to single precision if desired
+        a[i] = REAL(p);
+        break;
+      }
+      case EXTPTRSXP: {
+        XPtr< cuData > dp(p);
+        a[i] = dp->getPtr();   
+        break;
+      }
+      default: {
+        Rf_errorcall(R_NilValue, "args must be list of numerics or pointers to device memory (see h2dvector and h2dmatrix).");
+      }
+    }
+  }
+  CUDA_SAFE_CALL( 
+    cuLaunchKernel(kernel, 
+                   dimG.x, dimG.y, dimG.z, // grid dim 
+                   dimB.x, dimB.y, dimB.z,// block dim 
+                   0, NULL, // shared mem and stream 
+                   a, 0) // arguments
+  ); 
+  CUDA_SAFE_CALL(cuCtxSynchronize());
+                                 
+}
+//void kernexec(int n, float a, float *x, float *y)
+  
 
 void Cuda::loadKernel(string fn) {
   size_t ptxSize; 
   char *ptx;
   nvrtcProgram prog;
   CUmodule module; 
-  CUfunction kernel; 
   CUdevice cuDevice;
   CUcontext context;
   
@@ -79,24 +147,72 @@ void Cuda::loadKernel(string fn) {
   NVRTC_SAFE_CALL( nvrtcGetPTXSize(prog, &ptxSize)); 
   ptx = new char[ptxSize];
   NVRTC_SAFE_CALL( nvrtcGetPTX(prog, ptx));
-  
   CUDA_SAFE_CALL( cuInit(0)); 
   CUDA_SAFE_CALL( cuDeviceGet(&cuDevice, 0));
   CUDA_SAFE_CALL( cuCtxCreate(&context, 0, cuDevice);  
   CUDA_SAFE_CALL( cuModuleLoadDataEx(&module, ptx, 0, 0, 0))); 
   CUDA_SAFE_CALL( cuModuleGetFunction(&kernel, module, "kernexec"));
   delete(ptx);
-
-  _kernel = kernel;
 }
 
-void Cuda::loadMatrix(NumericMatrix x) {
-  int* device;
-  const size_t size = sizeof(float) * size_t(x.nrow() * x.ncol());
-  CU_SAFE_CALL( cudaMalloc((void **)&device, size)); 
-  CU_SAFE_CALL( cudaMemcpy(device, REAL(x), size, cudaMemcpyHostToDevice)); 
-  //kernel<<<N,N>>>(a_device); 
-  return;
+XPtr<cuData> Cuda::h2dVector(NumericVector x) {
+  cuData *dat = new cuData(x);
+  XPtr< cuData >  p(dat, true);
+  return p;
+}
+
+XPtr<cuData> Cuda::h2dMatrix(NumericMatrix x) {
+  cuData *dat = new cuData(x);
+  XPtr< cuData >  p(dat, true);
+  return p;
+}
+
+NumericMatrix Cuda::d2hMatrix(SEXP dx) {
+  // TODO: verify argument type is EXTPTRSXP
+  XPtr< cuData > cudat(dx);
+  NumericMatrix hx(cudat->nrow(), cudat->ncol());
+  size_t size = cudat->ncol() * cudat->nrow();
+  CUDA_SAFE_CALL( cuMemcpyDtoH(hx.begin(), *(cudat->getPtr()), size*sizeof(double)) );
+  return(hx);
+}
+
+NumericVector Cuda::d2hVector(SEXP dx) {
+  // TODO: verify argument type is EXTPTRSXP
+  XPtr< cuData > cudat(dx);
+  NumericVector hx(cudat->length());
+  size_t size = cudat->ncol() * cudat->nrow();
+  CUDA_SAFE_CALL( cuMemcpyDtoH(hx.begin(), *(cudat->getPtr()), size) );
+  return(hx);
+}
+
+void Cuda::test1(List x) {
+  List xlist(x);
+  int n = x.length();
+  void *args[x.length()];
+  for(int i; i<xlist.length();i++) {
+    SEXP p = xlist[i];
+    cout << TYPEOF(p) << ": " << Rf_type2char(TYPEOF(p)) << endl;
+    switch(TYPEOF(p)) {
+    case INTSXP: {
+      args[i] = INTEGER(p);
+      break;
+    }
+    case REALSXP: {
+      // TODO: allow for conversion to single precision if desired
+      args[i] = REAL(p);
+      break;
+    }
+    case EXTPTRSXP: {
+      //XPtr<WVal<CUdeviceptr> > wvp(p);
+      //CUdeviceptr dx = wvp->value;
+      //cout << "Pointer address " << hex << wvp << endl;
+      //cout << "Pointer value " << hex << dx << endl;
+      break;
+    }
+    default:
+      Rf_errorcall(R_NilValue, "Only integer and double (real) types supported (%s received)", Rf_type2char(TYPEOF(p)));
+    }
+  }
 }
 
 
@@ -104,6 +220,11 @@ RCPP_MODULE(cuda) {
   class_<Cuda>( "Cuda" )
   .constructor()
   .method( "loadKernel", &Cuda::loadKernel, "Read kernel from source file, compile, and load it on device." )
-  .method( "loadMatrix", &Cuda::loadMatrix, "Load numeric matrix to device." )
-;
+  .method( "launchKernel", &Cuda::launchKernel, "Launch a loaded kernel with provided arguments." )
+  .method( "h2dMatrix", &Cuda::h2dMatrix, "Load numeric matrix to device." )
+  .method( "h2dVector", &Cuda::h2dVector, "Load numeric vector to device." )
+  .method( "d2hMatrix", &Cuda::d2hMatrix, "Retrieve numeric matrix from device." )
+  .method( "d2hVector", &Cuda::d2hVector, "Retrieve numeric vector from device." )
+  .method( "test1", &Cuda::test1, "Test some things." )
+  ;
 }

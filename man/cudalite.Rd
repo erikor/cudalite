@@ -14,7 +14,6 @@ The functionality of the cudalite package is encapsulated in the \code{Cuda} cla
       \item{None.}
     }
   }
-  
   \subsection{Methods}{
     \itemize{
 
@@ -36,14 +35,14 @@ The functionality of the cudalite package is encapsulated in the \code{Cuda} cla
       None.  Called for its side effect of loading data onto the GPU.
     }
   }
-}
+  
 \usage{
 library(cudalite)
 cu <- new(Cuda)
 k <- system.file("extdata", "matrixtest.cu", package="cudalite")
 cu$loadKernel(k)
 m <- matrix(1, ncol=3, nrow=3)
-cu$loadMatrix(m)
+cu$h2dMatrix(m)
 }
 }
 
