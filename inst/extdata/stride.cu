@@ -1,11 +1,8 @@
 extern "C" 
 
-#include <stdio.h>
-
 __global__
 void kernexec(double nrow, double ncol, double *x, double *out)
 {
-
    /*
     * striding to allow for matrix larger than number of available threads
     *
@@ -16,13 +13,12 @@ void kernexec(double nrow, double ncol, double *x, double *out)
 
     int c = blockIdx.x * blockDim.x + threadIdx.x;
     int r = blockIdx.y * blockDim.y + threadIdx.y;
-    if(threadIdx.x == 0) {
-      printf("\ndims: %d, %d\n", blockDim.x, blockDim.y);
-    }
-    for (int i = r; i < nrow; i+= blockDim.x * gridDim.x) {
-      for (int j = c; j < ncol; j+= blockDim.y * gridDim.y) {
-        int index = i * ncol + j;
+    for (int i = r; i < nrow; i+= blockDim.y * gridDim.y) {
+      for (int j = c; j < ncol; j+= blockDim.x * gridDim.x) {
+        // RCpp's numeric matrix stores data column-wise
+        int index = i + nrow * j;
         out[index] = x[index];
       }
     }
 }
+
