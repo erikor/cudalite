@@ -42,7 +42,7 @@ src/*.o
 # autoconf generated files
 autom4te.cache/**
 config.*
-
+src/Makevars
 
 # temporary files
 *.*~
