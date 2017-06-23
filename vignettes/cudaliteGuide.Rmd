@@ -16,9 +16,17 @@ There is already a package for interfacing R and CUDA, the aptly named RCUDA whi
 Thus, `cudalite` was born.  I hope you find it useful and simple to use.  If you would rather use RCUDA, by all means do so.
 
 
-## Requirements
+## Requirements & installation
 
 To build, install, and use the `cudalite` package you will need to have the [CUDA SDK](https://developer.nvidia.com/cuda-downloads) installed and a CUDA capable GPU available.  
+
+Assuming those requirements are met, the package can be installed as follows:
+
+```bash
+devtools::install_git("https://github.com/erikor/cudalite")
+```
+
+The package includes a configure script that will do its best to discern the location of your CUDA installation.
 
 ## Example session
 
