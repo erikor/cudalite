@@ -14,6 +14,22 @@ test_that("Data can be loaded", {
   expect_true({cu$h2dMatrix(m); TRUE})
 })
 
+test_that("Vector can be loaded and retrieved", {  
+  cu <- new(Cuda)
+  x <- rnorm(20)
+  x_dev <- cu$h2dVector(x)
+  copy <- cu$d2hVector(x_dev)
+  expect_true(all.equal(x, copy))
+})
+
+test_that("Matrix can be loaded and retrieved", {  
+  cu <- new(Cuda)
+  x <- matrix(rnorm(20), ncol=4, nrow=5)
+  x_dev <- cu$h2dMatrix(x)
+  copy <- cu$d2hMatrix(x_dev)
+  expect_true(all.equal(x, copy))
+})
+
 context("Kernels")
 test_that("Kernel can be loaded", {  
   k <- system.file("extdata", "hello.cu", package="cudalite")
