@@ -4,7 +4,7 @@ A simple interface between R and CUDA providing facilties for data transfer and 
 
 ## Motivation
 
-There is already a package for interfacing R and CUDA, the aptly named RCUDA which provides an elegant and comprehensive interface to CUDA computation.  That package likely would meet your needs.  However, I decided to develop the `cudalite` package for a couple of reasons.  First, RCUDA did not compile out of the box for me.  (Although I have since been able to resolve those issues, and I desribe the fixes in issues raised at the RCUDA github repository.)  Second, I wanted a simple, relatively low level interface (and therefore highly flexible) interface to CUDA. Finally, I wanted to have a solid understanding of the fundamentals of CUDA and how data was flowing back and forth between R, the host, and the device.
+There is already a package for interfacing R and CUDA, the aptly named RCUDA which provides an elegant and comprehensive interface to CUDA computation.  That package likely would meet your needs.  However, I decided to develop the `cudalite` package for a couple of reasons.  First, RCUDA did not compile out of the box for me.  (Although I have since been able to resolve those issues, and I desribe the fixes in issues raised at the RCUDA github repository.)  Second, I wanted a simple, relatively low level (and therefore highly flexible) interface to CUDA. Finally, I wanted to have a solid understanding of the fundamentals of CUDA and how data was flowing back and forth between R, the host, and the device.
 
 Thus, `cudalite` was born.  I hope you find it useful and simple to use.  If you would rather use RCUDA, by all means do so.
 
