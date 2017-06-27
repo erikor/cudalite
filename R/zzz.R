@@ -145,3 +145,16 @@ NULL
 #' @aliases d2hVector d2hMatrix
 NULL
 
+#' Cuda class method: getProps
+#' 
+#' Display properties of GPU device
+#' 
+#'   
+#' @examples 
+#' \dontrun{
+#' cu <- new(Cuda)
+#' copy <- cu$getProps()
+#' all.equal(x, copy)
+#' }
+#' @name getProps
+NULL

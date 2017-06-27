@@ -136,12 +136,13 @@ class Cuda {
     Cuda() {}
     double test();
     void loadKernel(string);
-    void launchKernel(List, List, List);
+    void launchKernel(List, List, List, string = "kernexec");
     XPtr< cuData > h2dMatrix(NumericMatrix);
     XPtr< cuData > h2dVector(NumericVector);
     NumericVector d2hVector(SEXP);
     NumericMatrix d2hMatrix(SEXP);
     void dFree(SEXP);
+    void getProps();
     
   private: 
     CUfunction kernel;
@@ -150,6 +151,65 @@ class Cuda {
     CUcontext context;
     void checkCap(List, List);
 };
+
+
+/*
+ *  Infer number of cores per multiprocessor from compute capability
+ *  Based on Robert Crovella's SO response: https://goo.gl/XguKMK
+ *  Also see https://people.maths.ox.ac.uk/gilesm/cuda/prac1/helper_cuda.h
+ */
+int getSPcores(cudaDeviceProp devProp)
+{  
+  int cores = 0;
+  switch (devProp.major){
+  case 2: // Fermi
+    if (devProp.minor == 1) cores = 48;
+    else cores = 32;
+    break;
+  case 3: // Kepler
+    cores = 192;
+    break;
+  case 5: // Maxwell
+    cores = 128;
+    break;
+  case 6: // Pascal
+    if (devProp.minor == 1) cores = 128;
+    else if (devProp.minor == 0) cores = 64;
+    else cores = -999;
+    break;
+  default:
+    cores = -999;
+  break;
+  }
+  return cores;
+}
+
+/* Display properties/capabilities of device
+ * 
+ * @return none  Called for side effect of displaying information on stdout
+ */
+void Cuda::getProps() {
+  cudaDeviceProp props;
+  cudaGetDeviceProperties(&props, 0);
+  cout << "DEVICE SPECIFICATIONS:" << endl << "----------------------" << endl;
+  cout << "Device name: " << props.name << endl;
+  cout << "Total Global Memory: " << props.totalGlobalMem << endl;
+  cout << "Share mem per block: " << props.sharedMemPerBlock << endl;
+  cout << "Registers per block: " << props.regsPerBlock << endl;
+  cout << "Warp size: " << props.warpSize << endl;
+  cout << "Max threads per block: " << props.maxThreadsPerBlock << endl;
+  cout << "Max thread dimensions (x, y, z): " << props.maxThreadsDim[0] << ", "
+       << props.maxThreadsDim[1] << ", "
+       << props.maxThreadsDim[2] << endl;
+  cout << "Max grid dimensions (x, y, z): " << props.maxGridSize[0] << ", "
+       << props.maxGridSize[1] << ", "
+       << props.maxGridSize[2] << endl;
+  cout << "Compute capability: " << props.major << "." << props.minor << endl;
+  cout << "Multiprocessor count: " << props.multiProcessorCount << endl;
+  cout << "Cores per multiprocessor (inferred): " << getSPcores(props) << endl;
+  return;
+}
+
 
 /* See if device supports requested grid structure
  * 
@@ -199,7 +259,6 @@ void Cuda::loadKernel(string fn) {
   size_t ptxSize; 
   char *ptx;
   nvrtcProgram prog;
-  
   ifstream file(fn.c_str());
   string buf((istreambuf_iterator<char>(file)),
              istreambuf_iterator<char>());
@@ -218,7 +277,8 @@ void Cuda::loadKernel(string fn) {
   CUDA_SAFE_CALL( cuInit(0)); 
   CUDA_SAFE_CALL( cuDeviceGet(&cuDevice, 0));
   CUDA_SAFE_CALL( cuCtxCreate(&context, 0, cuDevice);  
-                    CUDA_SAFE_CALL( cuModuleLoadDataEx(&module, ptx, 0, 0, 0))); 
+  CUDA_SAFE_CALL( cuModuleLoadDataEx(&module, ptx, 0, 0, 0))); 
+  string sp = "kernexec";
   CUDA_SAFE_CALL( cuModuleGetFunction(&kernel, module, "kernexec"));
   delete(ptx);
   return;
@@ -242,10 +302,12 @@ void Cuda::dFree(SEXP p) {
  * h2dMatrix)
  * 
  */
-void Cuda::launchKernel(List grid, List block, List args) {
+void Cuda::launchKernel(List grid, List block, List args, string fname) {
   dim3 dimG(*REAL(grid[0]), *REAL(grid[1]), *REAL(grid[2]));
   dim3 dimB(*REAL(block[0]), *REAL(block[1]), *REAL(block[2]));
   checkCap(grid, block);
+  cout << fname << endl;
+
   
   int n = args.length();
   void *a[args.length()];
@@ -347,6 +409,7 @@ NumericVector Cuda::d2hVector(SEXP dx) {
 RCPP_MODULE(cuda) {
   class_<Cuda>( "Cuda" )
   .constructor()
+  .method( "getProps", &Cuda::getProps, "Print device capabilities to stdout." )
   .method( "loadKernel", &Cuda::loadKernel, "Read kernel from source file, compile, and load it on device." )
   .method( "launchKernel", &Cuda::launchKernel, "Launch a loaded kernel with provided arguments." )
   .method( "h2dMatrix", &Cuda::h2dMatrix, "Load numeric matrix to device." )

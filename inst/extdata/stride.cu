@@ -15,7 +15,7 @@ void kernexec(double nrow, double ncol, double *x, double *out)
     int r = blockIdx.y * blockDim.y + threadIdx.y;
     for (int i = r; i < nrow; i+= blockDim.y * gridDim.y) {
       for (int j = c; j < ncol; j+= blockDim.x * gridDim.x) {
-        // RCpp's numeric matrix stores data column-wise
+        // Matrix data is stored column-wise 
         int index = i + nrow * j;
         out[index] = x[index];
       }

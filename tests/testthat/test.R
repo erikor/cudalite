@@ -44,7 +44,7 @@ test_that("Kernel can be launched", {
   yp <- cu$h2dMatrix(y);
   k <- system.file("extdata", "stride.cu", package="cudalite")
   cu$loadKernel(k)
-  cu$launchKernel(list(1,1,1), list(3,2,1), list(5, 4, xp, yp))
+  cu$launchKernel(list(1,1,1), list(3,2,1), list(5, 4, xp, yp), "kernexec")
   res <- cu$d2hMatrix(yp)
   expect_true(all.equal(x, res))
 })
@@ -64,3 +64,49 @@ hold <- function() {
   res <- cu$d2hMatrix(yp)
   all.equal(x, res)
 }
+
+#void kernexec(double nrow, double ncol, // matrix dimensions
+#              double *pos,              // "positive" rows of matrix
+#              double l,                 // length of positive rows array
+#              double *x,                // matrix of ranked data
+#              double *out)              // output matrix
+
+test_that("Matrix lookup works", {  
+  cu <- new(Cuda)  
+  set.seed(1000)
+  ix <- sample(1:1000, 500)
+  x <- matrix(rnorm(1000000), nrow=1000, ncol=1000)
+  xr <- floor(apply(x, 2, rank))
+  r <- matrix(0, nrow=1000, ncol=1000)
+  xrp <- cu$h2dMatrix(xr);
+  ixp <- cu$h2dVector(ix-1);
+
+  pen = -1 / (nrow(x) -length(ix));
+  inc = 1 / length(ix);
+  
+  rp <- cu$h2dMatrix(r);
+  cu$loadKernel("inst/extdata/ks.cu")
+  cu$launchKernel(list(100, 10, 1), list(10, 100, 1), list(1000, 1000, ixp, 50, pen, inc, xrp, rp))
+  res <- cu$d2hMatrix(rp)
+  expect_true(all.equal(x, res))
+})
+
+f1 <- function() {
+  rp <- cu$h2dMatrix(r);
+  cu$launchKernel(list(100, 10, 1), list(10, 100, 1), list(1000, 1000, ixp, 50, pen, inc, xrp, rp))
+  res <- cu$d2hMatrix(rp)
+}
+
+system.time(f1())
+
+ks <- function(r, ix) {
+  inc <- 1/length(ix)
+  pen <- -1 / (length(r) - length(ix))
+  k <- rep(pen, length(r))
+  k[floor(r[ix])] <- 0
+  k[floor(r[ix])] <- k[floor(r[ix])] + inc
+  k
+}
+
+system.time(tt <- cbind(apply(xr, 2, ks, ix)))
+
